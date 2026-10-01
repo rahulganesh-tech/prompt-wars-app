@@ -96,12 +96,24 @@ def clean_text_for_speech(text: str) -> str:
     return clean
 
 
+LAST_AUDIO_ERROR: Optional[str] = None
+
+
+def get_last_audio_error() -> Optional[str]:
+    """Return the last exception message from audio generation, if any."""
+    return LAST_AUDIO_ERROR
+
+
 def generate_tamil_audio(text: str) -> Optional[bytes]:
     """Generate Tamil speech audio bytes from text using Google gTTS.
 
+    Writes to an in-memory BytesIO buffer (never to disk).
     Returns MP3 bytes on success, None on failure (offline/timeout).
     Uses caching so repeated calls for the same text take 0ms.
     """
+    global LAST_AUDIO_ERROR
+    LAST_AUDIO_ERROR = None
+
     clean = clean_text_for_speech(text)
     if not clean:
         return None
@@ -119,6 +131,7 @@ def generate_tamil_audio(text: str) -> Optional[bytes]:
         return _AUDIO_CACHE[text_hash]
 
     if gTTS is None:
+        LAST_AUDIO_ERROR = "gTTS library is not installed."
         return None
 
     try:
@@ -130,9 +143,25 @@ def generate_tamil_audio(text: str) -> Optional[bytes]:
         if audio_data and len(audio_data) > 50:
             _AUDIO_CACHE[text_hash] = audio_data
             return audio_data
+        LAST_AUDIO_ERROR = "Generated audio buffer was empty or under 50 bytes."
         return None
-    except Exception:
+    except Exception as e:
+        LAST_AUDIO_ERROR = str(e)
         return None
+
+
+def generate_tamil_audio_stream(text: str) -> Optional[io.BytesIO]:
+    """Generate an in-memory BytesIO stream for st.audio() from Tamil text.
+
+    Uses gTTS writing to an in-memory buffer (write_to_fp).
+    Never writes to disk. Returns seek(0) BytesIO buffer or None.
+    """
+    audio_data = generate_tamil_audio(text)
+    if audio_data:
+        buf = io.BytesIO(audio_data)
+        buf.seek(0)
+        return buf
+    return None
 
 
 def get_scheme_explanation(

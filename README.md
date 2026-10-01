@@ -7,6 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40%2B-FF4B4B.svg)](https://streamlit.io/)
 [![Google Gemini API](https://img.shields.io/badge/Google%20Gemini-3.8%20Flash-4285F4.svg)](https://ai.google.dev/)
+[![Google Cloud Run](https://img.shields.io/badge/Google%20Cloud-Cloud%20Run-4285F4.svg)](https://cloud.google.com/run)
 [![Voice](https://img.shields.io/badge/Google%20gTTS-Tamil%20Voice%20Audio-34A853.svg)](https://pypi.org/project/gTTS/)
 [![Tests](https://img.shields.io/badge/Tests-14%20Passed%20(100%25)-brightgreen.svg)]()
 [![Accessibility](https://img.shields.io/badge/WCAG-AAA%20Contrast%20(100%25%20Tamil)-green.svg)]()
@@ -72,6 +73,7 @@
 - **Frontend Framework:** [Streamlit](https://streamlit.io/) (Kiosk-style custom CSS, responsive layout)
 - **Core AI Model:** [Google Gemini 3.8 Flash](https://ai.google.dev/) via official `google-genai` SDK
 - **Voice Synthesis:** [gTTS (Google Text-to-Speech)](https://pypi.org/project/gTTS/) + HTML5 Web Speech API fallback
+- **Containerization & Cloud Hosting:** Docker + [Google Cloud Run](https://cloud.google.com/run)
 - **Environment Management:** `python-dotenv` for secure environment variable handling
 - **Testing Framework:** `pytest` + `streamlit.testing.v1.AppTest`
 
@@ -95,6 +97,8 @@ promt-wars-app/
 ├── utils.py            # Gemini 3.8 Flash API integration, gTTS audio generation, caching & fallback
 ├── test_app.py         # Pytest test suite (14 automated unit & AppTest UI tests)
 ├── requirements.txt    # Minimal production dependencies (streamlit, google-genai, gTTS, python-dotenv, pytest)
+├── Dockerfile          # Production container build specification for Google Cloud Run
+├── .dockerignore       # Excludes local caches, virtual environments, and secrets from container
 ├── .env                # API Key configuration (git-ignored, never committed)
 ├── .gitignore          # Excludes .env, .venv, __pycache__, and test caches
 ├── PROMPTS.md          # Log of key prompts and prompt engineering workflow
@@ -103,7 +107,7 @@ promt-wars-app/
 
 ---
 
-## 🚀 8. Setup & Run Instructions
+## 🚀 8. Setup & Run Instructions (Local)
 
 ### 1. Clone the repository:
 ```bash
@@ -145,10 +149,28 @@ pytest -v
 
 ---
 
-## 🔗 9. Live Demo Link
+## ☁️ 9. Deployment
 
-- **Live Streamlit Community Cloud App:** `[To be added upon deployment]`
-- **Video Walkthrough:** `[To be added upon deployment]`
+This app is deployed on **Google Cloud Run**, a fully managed serverless platform, as required by the PromptWars x HackArena event rules.
+
+**Why Cloud Run:**
+- Automatically scales to zero when idle and scales up under load — no server management needed
+- Deploys directly from our GitHub repository via Cloud Build, using the included Dockerfile
+- Provides a public HTTPS endpoint with no authentication required, so evaluators can access the app instantly
+
+**Google services used in this project:**
+1. **Gemini API** — powers the core AI feature: generating simple, spoken-style Tamil explanations of government schemes
+2. **Google Cloud Run** — hosts and serves the deployed application
+3. **Google Text-to-Speech (via gTTS)** — converts Gemini's Tamil responses into spoken audio for the voice-first experience
+
+**Live demo link:** [ADD_CLOUD_RUN_URL_HERE]
+
+**Deployment process:**
+1. Code pushed to a public GitHub repository (single `main` branch)
+2. Google Cloud Build configured to build from the repository's Dockerfile
+3. Container deployed to Cloud Run in the `asia-south1` (Mumbai) region
+4. Environment variable `GEMINI_API_KEY` set securely via Cloud Run's Variables & Secrets (never hardcoded)
+5. Public access enabled so the app works with zero login
 
 ---
 

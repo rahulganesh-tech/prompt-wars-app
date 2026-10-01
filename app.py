@@ -7,6 +7,7 @@ Design: 4 large touch buttons (1 demo + 3 schemes), 100% Tamil, auto-voice playb
 """
 
 import base64
+import io
 import streamlit as st
 from utils import (
     SCHEMES,
@@ -14,6 +15,7 @@ from utils import (
     get_demo_response,
     get_scheme_explanation,
     generate_tamil_audio,
+    get_last_audio_error,
 )
 
 # ─── Page Configuration ────────────────────────────────────────────────────────
@@ -197,25 +199,21 @@ div.stButton > button[key^="scheme_btn_"]:hover {
 }
 
 /* ── Replay Audio Button ── */
-.replay-wrap {
-    text-align: center;
-    margin: 16px 0;
+div.stButton > button[key="replay_voice_btn"] {
+    background: #065F46 !important;
+    color: #FFFFFF !important;
+    border: 3px solid #34D399 !important;
+    min-height: 68px !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    border-radius: 16px !important;
+    width: 100% !important;
+    box-shadow: 0 4px 14px rgba(6,95,70,0.25) !important;
+    margin: 12px 0 6px !important;
+    cursor: pointer !important;
 }
-.replay-btn {
-    background: #065F46;
-    color: #FFFFFF;
-    border: 3px solid #34D399;
-    border-radius: 16px;
-    padding: 14px 28px;
-    font-size: 23px;
-    font-weight: 800;
-    cursor: pointer;
-    font-family: 'Mukta Malar', 'Noto Sans Tamil', sans-serif;
-    box-shadow: 0 5px 16px rgba(6,95,70,0.3);
-    transition: all 0.2s ease;
-}
-.replay-btn:hover {
-    background: #047857;
+div.stButton > button[key="replay_voice_btn"]:hover {
+    background: #047857 !important;
     transform: translateY(-2px);
 }
 
@@ -312,7 +310,10 @@ if st.button("✨ மாதிரி விளக்கம் (இணையம�
     st.session_state.is_demo = True
     # Fast spoken summary for instant audio playback
     demo_speech = "கலைஞர் மகளிர் உரிமைத் திட்டம். ஏழை குடும்பத் தலைவிகளுக்கு மாதம் ஆயிரம் ரூபாய் வங்கி உதவி."
-    st.session_state.audio_bytes = generate_tamil_audio(demo_speech)
+    try:
+        st.session_state.audio_bytes = generate_tamil_audio(demo_speech)
+    except Exception:
+        st.session_state.audio_bytes = None
 
 # ─── Spoken Guide Line ──────────────────────────────────────────────────────────
 st.markdown("""
@@ -334,8 +335,15 @@ for idx, scheme in enumerate(SCHEMES):
         """, unsafe_allow_html=True)
 
         explanation = get_scheme_explanation(scheme["title"])
-        spoken_summary = explanation.split("📝")[0] if "📝" in explanation else explanation[:140]
-        audio = generate_tamil_audio(spoken_summary)
+        if explanation.strip() == FALLBACK_MESSAGE.strip():
+            spoken_summary = f"{scheme['title']}. அம்மா, இப்போது இணைய இணைப்பு குறைவாக உள்ளது. ரேஷன் கடையில் இலவசமாக உதவி செய்வார்கள்."
+        else:
+            spoken_summary = explanation.split("📝")[0] if "📝" in explanation else explanation[:140]
+
+        try:
+            audio = generate_tamil_audio(spoken_summary)
+        except Exception:
+            audio = None
 
         wait.empty()
 
@@ -372,47 +380,22 @@ if st.session_state.response_text:
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Voice Output & Listen Again Replay ───────────────────────────────
-        audio_bytes = st.session_state.audio_bytes
+    # ── Voice Output & Listen Again Replay ───────────────────────────────
+    audio_bytes = st.session_state.audio_bytes
 
-        if audio_bytes:
-            # gTTS audio available: autoplay audio + 🔁 Listen Again button
-            b64 = base64.b64encode(audio_bytes).decode()
-            st.html(f"""
-            <audio id="tamilAudio" autoplay>
-                <source src="data:audio/mp3;base64,{b64}" type="audio/mpeg">
-            </audio>
-            <div class="replay-wrap">
-                <button onclick="var a=document.getElementById('tamilAudio'); a.currentTime=0; a.play();" class="replay-btn">
-                    🔁 மறுபடியும் கேளுங்கள்
-                </button>
-            </div>
-            """)
-        else:
-            # Fallback to browser Speech API if gTTS was offline
-            clean_speech = content.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", "")
-            for ch in "📌👩📝🏢•✨💰🧵👶❌⚠️⏳🔊🗣️🌾🌸🏛️*#":
-                clean_speech = clean_speech.replace(ch, " ")
+    if audio_bytes:
+        # Replay button allows listening again anytime
+        if st.button("🔁 மறுபடியும் கேளுங்கள் (குரல் ஒலி)", key="replay_voice_btn"):
+            st.session_state.replay_count = st.session_state.get("replay_count", 0) + 1
 
-            st.html(f"""
-            <div class="replay-wrap">
-                <button onclick="speakTamil()" class="replay-btn">
-                    🔁 மறுபடியும் கேளுங்கள்
-                </button>
-            </div>
-            <script>
-            function speakTamil() {{
-                if ('speechSynthesis' in window) {{
-                    window.speechSynthesis.cancel();
-                    var u = new SpeechSynthesisUtterance("{clean_speech[:350]}");
-                    u.lang = 'ta-IN';
-                    u.rate = 0.88;
-                    window.speechSynthesis.speak(u);
-                }}
-            }}
-            setTimeout(speakTamil, 350);
-            </script>
-            """)
+        try:
+            audio_buffer = io.BytesIO(audio_bytes)
+            audio_buffer.seek(0)
+            st.audio(audio_buffer, format="audio/mp3", autoplay=True)
+        except Exception:
+            st.info("🔊 குரல் ஒலி தற்காலிகமாக கிடைக்கவில்லை. (இணைய இணைப்பு குறைவாக இருக்கலாம்)")
+    else:
+        st.info("🔊 குரல் ஒலி தற்காலிகமாக கிடைக்கவில்லை. (குரல் சேவை இணையம் வழியாக இயங்குகிறது)")
 
     # Dismiss Button to return to home
     if st.button("❌ விளக்கம் போதும் — வேறு திட்டம் பார்க்க", key="reset_btn"):
