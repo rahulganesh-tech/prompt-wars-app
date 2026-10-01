@@ -1,0 +1,21 @@
+# Ignore local virtual environments and caches
+.venv/
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Ignore sensitive secrets
+.env
+
+# Ignore git and IDE configurations
+.git/
+.gitignore
+.vscode/
+.idea/
+.DS_Store
